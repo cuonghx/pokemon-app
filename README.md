@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Pokemon App
 
-## Getting Started
+## Requirements
 
-First, run the development server:
+Create a Pokemon App (using Nextjs-version 14):
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- This page is displaying a list of Pokemon with pagination
+- You can filter the Pokemon by type.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Overview
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This document provides an architectural and implementation overview of the Pokemon App built using Next.js (version 14). The app displays a list of Pokemon with pagination and allows filtering by type. It leverages server-side rendering, in-memory caching, and URL search parameters for managing state and paging.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## Architecture
 
-## Learn More
+### Components
 
-To learn more about Next.js, take a look at the following resources:
+1. Server Component:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Renders the content from the server side using Next.js.
+- Fetches data from the PokeAPI based on the current filters and pagination state.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+2. Client Component:
 
-## Deploy on Vercel
+- Manages the pagination and filter state on the client side.
+- Updates the URL search parameters to reflect the current state.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. Caching Layer:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+- Uses in-memory cache (LRU) to store filter values with relevant keywords.
+- Utilizes axios-cache-interceptor to cache identical requests and centralize error handling.
+
+## Data Flow
+
+1. Initial Render:
+
+- The server component checks URL search parameters to determine current filters and pagination state.
+- Fetches Pokemon data accordingly using either fetchPokemon or fetchPokemonByTypes API.
+
+2. Client Interaction:
+
+- User interacts with pagination controls or filter options.
+- The client component updates the URL search parameters to reflect the new state.
+- Triggers a new data fetch based on the updated parameters.
+
+3. Data Fetching:
+
+- Depending on the filter state, the appropriate API (fetchPokemon or fetchPokemonByTypes) is called.
+- If fetching by type, the in-memory cache is checked to avoid redundant API calls.
+- Fetched data is stored in the cache for future use.
+
+## State Management
+
+### URL Search Parameters
+
+- The app uses URL search parameters to manage filter and pagination state.
+- This approach provides several benefits:
+  - Bookmarkable and Shareable URLs: Users can bookmark and share URLs with the current state of the application.
+  - Server-Side Rendering and Initial Load: The server can directly consume URL parameters to render the initial state.
+  - Analytics and Tracking: Easier tracking of user behavior through URL parameters without additional client-side logic.
+
+### In-Memory Cache
+
+- **LRU Cache**: An LRU (Least Recently Used) cache is used to store filter values and their corresponding results.
+- **Cache Management**:
+  - The cache avoids redundant API calls by storing results of recent queries.
+  - Handles duplicate requests and ensures efficient memory usage by evicting least recently used entries.
+- **Axios Cache Interceptor**
+  - **Caching Requests**: Uses axios-cache-interceptor to cache identical API requests.
+  - **Centralized Error Handling**: Errors from API requests are centrally managed, providing a consistent error handling mechanism.
+
+## Implementation Details
+
+### Fetching Data
+
+`fetchPokemon`:
+
+- Used when no filters are applied.
+- Parameters:
+  - offset: The offset for pagination.
+  - limit: The number of items per page.
+
+`fetchPokemonByTypes`
+
+- Used when filters are applied.
+- Parameters:
+  - types: A list of selected Pokemon types.
+- Utilizes the in-memory cache to store and retrieve results based on filter keywords.
+
+### Data Flow
+
+1. Check Filter Params:
+
+- Determine the API to call (fetchPokemon or fetchPokemonByTypes) based on the presence of filter parameters in the URL.
+
+2. Pagination Handling:
+
+- Pass offset and limit parameters to fetchPokemon for managing pagination.
+  For fetchPokemonByTypes, calculate the cache key based on filter keywords and retrieve/store results in the in-memory cache.
+
+### UI Components
+
+1. Pagination Component
+
+- Renders pagination controls.
+- Updates the URL search parameters on page change.
+- Fetches new data based on the current page.
+
+2. Filter Component
+
+- Renders filter options (Pokemon types).
+- Updates the URL search parameters on filter change.
+- Fetches filtered data based on selected types.
+
+3. Data Display Component
+
+- Renders the list of Pokemon.
+- Displays loading indicators or error messages based on the current state.
